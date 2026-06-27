@@ -74,3 +74,66 @@ Generated:
 Result:
 1276 records validated
 0 failures found
+## Day 4 – Database Loading
+
+### Tasks Completed
+
+* Successfully loaded all cleaned datasets into the SQLite database.
+* Verified data insertion for all project tables.
+* Checked row counts after loading.
+* Fixed loader issues related to column mappings and file headers.
+* Validated database integrity after loading.
+
+### Outcome
+
+* Database populated successfully.
+* Data loading process completed without critical errors.
+
+---
+
+## Day 5 – Data Integration & Validation
+
+### Tasks Completed
+
+* Loaded Companies, Balance Sheet, Profit & Loss, Cash Flow, Stock Prices, Market Cap, Financial Ratios, Peer Groups, Analysis and Sectors into SQLite.
+* Generated load audit report.
+* Performed row count verification.
+* Checked foreign key integrity.
+* Verified successful data loading across all tables.
+
+### Outcome
+
+* Complete financial database successfully created and validated.
+
+---
+
+## Day 6 – Data Quality Review
+
+### Tasks Completed
+
+* Performed manual review of random company records.
+* Verified year coverage across financial datasets.
+* Identified companies with limited historical data.
+* Validated loader outputs.
+* Re-ran data loading process after verification.
+
+### Outcome
+
+* Data quality review completed successfully with no critical issues.
+
+---
+
+## Day 7 – Sprint Wrap-Up
+
+### Tasks Completed
+
+* Created exploratory SQL queries.
+* Added comprehensive pytest test cases (35+ tests).
+* Verified database integrity through automated tests.
+* Demonstrated SQLite database functionality.
+* Completed sprint retrospective and documentation updates.
+
+### Outcome
+
+* Sprint 1 completed successfully.
+* Project repository updated with documentation and automated tests.
