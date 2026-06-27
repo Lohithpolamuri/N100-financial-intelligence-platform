@@ -1,20 +1,9 @@
-from pathlib import Path
 import sqlite3
 
-BASE_DIR = Path(__file__).resolve().parent.parent
+conn = sqlite3.connect("db/n100.db")
+cur = conn.cursor()
 
-DB_PATH = BASE_DIR / "db" / "n100.db"
-
-conn = sqlite3.connect(DB_PATH)
-
-cursor = conn.cursor()
-
-cursor.execute("""
-SELECT name
-FROM sqlite_master
-WHERE type='table';
-""")
-
-print(cursor.fetchall())
+cur.execute("SELECT name FROM sqlite_master WHERE type='table'")
+print(cur.fetchall())
 
 conn.close()
