@@ -57,8 +57,16 @@ balancesheet = balancesheet.rename(columns={
 balancesheet = balancesheet[[
     "company_id",
     "year",
-    "total_assets",
-    "total_liabilities"
+    "equity_capital",
+    "reserves",
+    "borrowings",
+    "other_liabilities",
+    "total_liabilities",
+    "fixed_assets",
+    "cwip",
+    "investments",
+    "other_asset",
+    "total_assets"
 ]]
 
 balancesheet.to_sql(

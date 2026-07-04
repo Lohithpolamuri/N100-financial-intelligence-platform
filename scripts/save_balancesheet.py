@@ -3,13 +3,9 @@ import pandas as pd
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-file_path = BASE_DIR / "data" / "raw" / "balancesheet.xlsx"
+df = pd.read_excel(
+    BASE_DIR / "data" / "raw" / "balancesheet.xlsx",
+    skiprows=1
+)
 
-df = pd.read_excel(file_path)
-
-output_path = BASE_DIR / "data" / "processed" / "balancesheet_clean.csv"
-
-df.to_csv(output_path, index=False)
-
-print("Saved:", output_path)
-print("Rows:", len(df))
+print(df.columns.tolist())
