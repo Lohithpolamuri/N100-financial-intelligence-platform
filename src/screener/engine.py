@@ -62,6 +62,15 @@ class ScreenerEngine:
             .str.extract(r":\s*(-?\d+)%")[0]
             .astype(float)
         )
+        self.eps_cagr = pd.read_sql(
+            """
+            SELECT
+                company_id,
+                eps_cagr_5yr
+            FROM eps_cagr
+            """,
+            self.conn
+        )
         print("\nAnalysis after cleaning")
         print(self.analysis.head())
         print(f"Rows : {len(self.analysis)}")
@@ -87,16 +96,15 @@ class ScreenerEngine:
         for key, value in self.config["filters"].items():
             print(f"{key:<30} : {value}")
 
+        # Store full merged dataset
+        self.master_df = self.prepare_master_dataframe()
 
-        self.filtered_df = self.apply_filters()
+        # Apply Day 15 filters
+        self.filtered_df = self.apply_filters(self.master_df.copy())
 
-
-
-    def apply_filters(self):
-
-        filters = self.config["filters"]
-
+    def prepare_master_dataframe(self):
         df = self.df.copy()
+
         df = df.merge(
             self.market_cap,
             on=["company_id", "year"],
@@ -114,11 +122,44 @@ class ScreenerEngine:
             on=["company_id", "year"],
             how="left"
         )
+
         df = df.merge(
             self.sectors,
             on="company_id",
             how="left"
         )
+
+        df = df.merge(
+            self.eps_cagr,
+            on="company_id",
+            how="left"
+        )
+        # ==========================================================
+        # KEEP ONLY LATEST YEAR
+        # ==========================================================
+
+        df["year_num"] = (
+            df["year"]
+            .str.extract(r"(\d{4})")
+            .astype(int)
+        )
+
+        df = (
+            df.sort_values("year_num")
+            .groupby("company_id", as_index=False)
+            .tail(1)
+        )
+
+        df = df.drop(columns="year_num")
+
+        return df
+
+    def apply_filters(self, df):
+
+        filters = self.config["filters"]
+
+
+
 
         df = df[
             df["return_on_equity_pct"] >= filters["roe_min"]
@@ -215,23 +256,49 @@ class ScreenerEngine:
                     >= filters["pat_cagr_5yr_min"]
             )
             ]
-
-
+        print(df[
+                  ["company_id", "eps_cagr_5yr"]
+              ].head(10))
         # ==========================================================
-        # INTEREST COVERAGE FILTER
+        # EPS CAGR FILTER
         # ==========================================================
 
         df = df[
             (
-                    df["interest_coverage"] >=
-                    filters["interest_coverage_min"]
+                df["eps_cagr_5yr"].isna()
             )
             |
             (
-                df["interest_coverage"].isna()
+                    df["eps_cagr_5yr"]
+                    >= filters["eps_cagr_min"]
             )
             ]
-        print("After Interest Coverage :", len(df))
+
+        print("After EPS CAGR :", len(df))
+
+
+
+
+        # ==========================================================
+        # INTEREST COVERAGE FILTER
+        # Debt Free companies always pass
+        # ==========================================================
+
+        icr = pd.to_numeric(
+            df["interest_coverage"],
+            errors="coerce"
+        )
+
+        df = df[
+            (
+                    icr >= filters["interest_coverage_min"]
+            )
+            |
+            (
+                    df["interest_coverage"].astype(str)
+                    == "Debt Free"
+            )
+            ]
 
         print("\n" + "=" * 60)
         print("FILTER RESULTS")
@@ -254,4 +321,33 @@ class ScreenerEngine:
 
 
 if __name__ == "__main__":
-    ScreenerEngine()
+
+    engine = ScreenerEngine()
+
+    from src.screener.presets import PresetScreeners
+
+    presets = PresetScreeners(
+        engine.master_df
+    )
+
+    result = presets.turnaround_watch()
+
+    print("\n")
+    print("=" * 60)
+    print("TURNAROUND WATCH")
+    print("=" * 60)
+
+    print("Companies :", len(result))
+
+    print(
+        result[
+            [
+
+                "company_id",
+                "compounded_sales_growth",
+                "debt_to_equity",
+                "free_cash_flow_cr"
+
+            ]
+        ].head(20)
+    )
