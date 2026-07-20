@@ -13,7 +13,8 @@ import pandas as pd
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 DB_PATH = BASE_DIR / "db" / "n100.db"
-
+print("\nDatabase Path:")
+print(DB_PATH.resolve())
 print("=" * 60)
 print("DAY 12 - FINANCIAL RATIO ENGINE")
 print("=" * 60)
@@ -100,8 +101,10 @@ for _, row in merged.iterrows():
         row["reserves"]
     )
 
+    ebit = row["operating_profit"] - row["depreciation"]
+
     roce = return_on_capital_employed(
-        row["operating_profit"],
+        ebit,
         row["equity_capital"],
         row["reserves"],
         row["borrowings"]
@@ -153,6 +156,7 @@ for _, row in merged.iterrows():
         "net_profit_margin_pct": npm,
         "operating_profit_margin_pct": opm,
         "return_on_equity_pct": roe,
+        "return_on_capital_employed_pct": roce,
         "debt_to_equity": de,
         "interest_coverage": icr,
         "asset_turnover": asset,
@@ -175,6 +179,13 @@ for _, row in merged.iterrows():
 
 print(f"Rows Ready : {len(ratio_results)}")
 ratio_df = pd.DataFrame(ratio_results)
+print("\n==============================")
+print("ratio_df columns")
+print("==============================")
+print(ratio_df.columns.tolist())
+
+print("\nFirst 5 rows")
+print(ratio_df.head())
 
 ratio_df.to_sql(
     "financial_ratios",

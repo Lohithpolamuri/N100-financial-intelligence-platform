@@ -2,7 +2,7 @@
 Sprint 3 - Day 15
 Financial Screener Engine
 """
-
+from src.analytics.composite_score import CompositeScore
 from pathlib import Path
 import sqlite3
 import pandas as pd
@@ -35,45 +35,16 @@ class ScreenerEngine:
         )
         self.market_cap["year"] = "Mar " + self.market_cap["year"].astype(str)
 
-        self.analysis = pd.read_sql(
-            "SELECT company_id, compounded_sales_growth, compounded_profit_growth FROM analysis",
-            self.conn
-        )
-        # ==========================================================
-        # KEEP ONLY 5-YEAR CAGR RECORDS
-        # ==========================================================
-
-        self.analysis = self.analysis[
-            self.analysis["compounded_sales_growth"]
-            .str.contains("5 Years", na=False)
-        ].copy()
-        # ==========================================================
-        # EXTRACT ONLY THE PERCENTAGE
-        # ==========================================================
-
-        self.analysis["compounded_sales_growth"] = (
-            self.analysis["compounded_sales_growth"]
-            .str.extract(r":\s*(-?\d+)%")[0]
-            .astype(float)
-        )
-
-        self.analysis["compounded_profit_growth"] = (
-            self.analysis["compounded_profit_growth"]
-            .str.extract(r":\s*(-?\d+)%")[0]
-            .astype(float)
-        )
-        self.eps_cagr = pd.read_sql(
+        self.cagr_metrics = pd.read_sql(
             """
-            SELECT
-                company_id,
-                eps_cagr_5yr
-            FROM eps_cagr
+            SELECT *
+            FROM cagr_metrics
             """,
             self.conn
         )
-        print("\nAnalysis after cleaning")
-        print(self.analysis.head())
-        print(f"Rows : {len(self.analysis)}")
+        print("\nCAGR Metrics")
+        print(self.cagr_metrics.head())
+        print(f"Rows : {len(self.cagr_metrics)}")
 
         self.profitloss = pd.read_sql(
             "SELECT company_id, year, sales, net_profit FROM profitandloss",
@@ -98,9 +69,13 @@ class ScreenerEngine:
 
         # Store full merged dataset
         self.master_df = self.prepare_master_dataframe()
+        # Calculate Composite Score
+        scorer = CompositeScore(self.master_df)
+        self.master_df = scorer.calculate()
 
         # Apply Day 15 filters
         self.filtered_df = self.apply_filters(self.master_df.copy())
+
 
     def prepare_master_dataframe(self):
         df = self.df.copy()
@@ -112,7 +87,7 @@ class ScreenerEngine:
         )
 
         df = df.merge(
-            self.analysis,
+            self.cagr_metrics,
             on="company_id",
             how="left"
         )
@@ -129,15 +104,7 @@ class ScreenerEngine:
             how="left"
         )
 
-        df = df.merge(
-            self.eps_cagr,
-            on="company_id",
-            how="left"
-        )
-        # ==========================================================
-        # KEEP ONLY LATEST YEAR
-        # ==========================================================
-
+        # Keep only latest year
         df["year_num"] = (
             df["year"]
             .str.extract(r"(\d{4})")
@@ -153,6 +120,8 @@ class ScreenerEngine:
         df = df.drop(columns="year_num")
 
         return df
+
+
 
     def apply_filters(self, df):
 
@@ -186,46 +155,23 @@ class ScreenerEngine:
             ]
         print("After Sales :", len(df))
 
-        df = df[
-            df["net_profit"] >= filters["net_profit_min"]
-            ]
+
         print("After Net Profit :", len(df))
 
-        df = df[
-            df["market_cap_crore"] >= filters["market_cap_min"]
-            ]
+
         print("After Market Cap :", len(df))
 
-        df = df[
-            df["pe_ratio"] <= filters["pe_max"]
-            ]
+
         print("After PE :", len(df))
 
-        df = df[
-            df["pb_ratio"] <= filters["pb_max"]
-            ]
+
+
         print("After PB :", len(df))
 
-        df = df[
-            df["dividend_yield_pct"] >= filters["dividend_yield_min"]
-            ]
+
         print("After Dividend Yield :", len(df))
 
-        # Convert CAGR columns to numeric
 
-        df["compounded_sales_growth"] = (
-            df["compounded_sales_growth"]
-            .astype(str)
-            .str.extract(r"(-?\d+)%")[0]
-            .astype(float)
-        )
-
-        df["compounded_profit_growth"] = (
-            df["compounded_profit_growth"]
-            .astype(str)
-            .str.extract(r"(-?\d+)%")[0]
-            .astype(float)
-        )
         # ==========================================================
         # REVENUE CAGR FILTER
         # Skip companies where CAGR data is unavailable
@@ -233,11 +179,11 @@ class ScreenerEngine:
 
         df = df[
             (
-                df["compounded_sales_growth"].isna()
+                df["revenue_cagr_5yr"].isna()
             )
             |
             (
-                    df["compounded_sales_growth"]
+                    df["revenue_cagr_5yr"]
                     >= filters["revenue_cagr_5yr_min"]
             )
             ]
@@ -248,11 +194,11 @@ class ScreenerEngine:
 
         df = df[
             (
-                df["compounded_profit_growth"].isna()
+                df["pat_cagr_5yr"].isna()
             )
             |
             (
-                    df["compounded_profit_growth"]
+                    df["pat_cagr_5yr"]
                     >= filters["pat_cagr_5yr_min"]
             )
             ]
@@ -324,30 +270,23 @@ if __name__ == "__main__":
 
     engine = ScreenerEngine()
 
+
     from src.screener.presets import PresetScreeners
 
     presets = PresetScreeners(
         engine.master_df
     )
 
-    result = presets.turnaround_watch()
-
     print("\n")
     print("=" * 60)
-    print("TURNAROUND WATCH")
+    print("TOP COMPOSITE SCORES")
     print("=" * 60)
 
-    print("Companies :", len(result))
-
     print(
-        result[
+        engine.master_df[
             [
-
                 "company_id",
-                "compounded_sales_growth",
-                "debt_to_equity",
-                "free_cash_flow_cr"
-
+                "composite_quality_score"
             ]
         ].head(20)
     )
