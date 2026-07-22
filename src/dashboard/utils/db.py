@@ -486,3 +486,242 @@ def get_roe_roce_trend(company_id):
     conn.close()
 
     return df
+@st.cache_data(ttl=600)
+def get_screener_data():
+
+    conn = get_connection()
+
+    query = """
+    SELECT
+        c.company_id,
+        c.company_name,
+
+        s.broad_sector,
+
+        COALESCE(ROUND(AVG(pp.percentile_rank),2), 0) AS composite_score,
+
+        fr.return_on_equity_pct,
+        fr.debt_to_equity,
+        fr.free_cash_flow_cr,
+        fr.operating_profit_margin_pct,
+        fr.interest_coverage,
+
+        mc.pe_ratio,
+        mc.pb_ratio,
+        mc.dividend_yield_pct,
+
+        cg.revenue_cagr_5yr,
+        cg.pat_cagr_5yr
+
+    FROM companies c
+
+    LEFT JOIN sectors s
+        ON c.company_id = s.company_id
+
+    LEFT JOIN financial_ratios fr
+        ON c.company_id = fr.company_id
+
+    LEFT JOIN market_cap mc
+        ON c.company_id = mc.company_id
+
+    LEFT JOIN cagr_metrics cg
+        ON c.company_id = cg.company_id
+
+    LEFT JOIN peer_percentiles pp
+        ON c.company_id = pp.company_id
+
+    WHERE fr.year='Mar 2024'
+      AND mc.year=2024
+
+    GROUP BY c.company_id
+    """
+
+    df = pd.read_sql(query, conn)
+
+    conn.close()
+
+    return df
+
+
+@st.cache_data(ttl=600)
+def get_peer_comparison_data():
+    conn = get_connection()
+
+    query = """
+    SELECT
+    pg.peer_group_name,
+    pg.is_benchmark,
+
+    c.company_name,
+    c.company_id,
+
+        fr.return_on_equity_pct,
+        fr.return_on_capital_employed_pct,
+        fr.net_profit_margin_pct,
+        fr.debt_to_equity,
+        fr.free_cash_flow_cr,
+
+        cg.revenue_cagr_5yr,
+        cg.pat_cagr_5yr
+
+    FROM peer_groups pg
+
+    JOIN companies c
+        ON pg.company_id = c.company_id
+
+    LEFT JOIN financial_ratios fr
+        ON c.company_id = fr.company_id
+
+    LEFT JOIN cagr_metrics cg
+        ON c.company_id = cg.company_id
+
+    WHERE fr.year='Mar 2024'
+    """
+
+    df = pd.read_sql(query, conn)
+    conn.close()
+    return df
+@st.cache_data(ttl=600)
+def get_trend_data():
+    conn = get_connection()
+
+    query = """
+    SELECT
+        c.company_id,
+        c.company_name,
+
+        fr.year,
+        fr.return_on_equity_pct,
+        fr.return_on_capital_employed_pct,
+        fr.net_profit_margin_pct,
+        fr.operating_profit_margin_pct,
+        fr.debt_to_equity,
+        fr.interest_coverage,
+        fr.free_cash_flow_cr
+
+    FROM financial_ratios fr
+
+    JOIN companies c
+        ON fr.company_id = c.company_id
+
+    WHERE fr.year LIKE 'Mar%'
+
+    ORDER BY
+        c.company_name,
+        fr.year
+    """
+
+    df = pd.read_sql(query, conn)
+
+    conn.close()
+
+    return df
+@st.cache_data(ttl=600)
+def get_sector_analysis_data():
+    conn = get_connection()
+
+    query = """
+    SELECT
+
+        c.company_id,
+        c.company_name,
+
+        s.broad_sector,
+        s.sub_sector,
+
+        p.sales,
+
+        fr.return_on_equity_pct,
+        fr.net_profit_margin_pct,
+        fr.debt_to_equity,
+
+        mc.market_cap_crore
+
+    FROM companies c
+
+    JOIN sectors s
+        ON c.company_id = s.company_id
+
+    LEFT JOIN profitandloss p
+        ON c.company_id = p.company_id
+
+    LEFT JOIN financial_ratios fr
+        ON c.company_id = fr.company_id
+
+    LEFT JOIN market_cap mc
+        ON c.company_id = mc.company_id
+
+    WHERE
+        p.year='Mar 2024'
+        AND fr.year='Mar 2024'
+        AND mc.year=2024
+
+    ORDER BY
+        s.broad_sector,
+        c.company_name
+    """
+
+    df = pd.read_sql(query, conn)
+
+    conn.close()
+
+    return df
+@st.cache_data(ttl=600)
+def get_capital_allocation_data():
+
+    # Read generated capital allocation file
+    allocation = pd.read_csv("output/capital_allocation.csv")
+
+    conn = get_connection()
+
+    companies = pd.read_sql("""
+        SELECT company_id, company_name
+        FROM companies
+    """, conn)
+
+    conn.close()
+
+    # Keep latest record for each company
+    allocation = allocation.sort_values("year")
+
+    allocation = allocation.drop_duplicates(
+        subset="company_id",
+        keep="last"
+    )
+
+    # Merge company names
+    df = allocation.merge(
+        companies,
+        on="company_id",
+        how="left"
+    )
+    st.write(df.columns)
+
+    return df
+@st.cache_data(ttl=600)
+def get_annual_reports():
+
+    reports = pd.read_excel(
+        "data/raw/documents.xlsx",
+        header=1
+    )
+
+    conn = get_connection()
+
+    companies = pd.read_sql("""
+        SELECT company_id, company_name
+        FROM companies
+    """, conn)
+
+    conn.close()
+
+    reports["company_id"] = reports["company_id"].astype(str).str.strip()
+    companies["company_id"] = companies["company_id"].astype(str).str.strip()
+
+    df = reports.merge(
+        companies,
+        on="company_id",
+        how="left"
+    )
+
+    return df

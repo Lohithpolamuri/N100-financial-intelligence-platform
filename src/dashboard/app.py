@@ -8,6 +8,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 PAGES = PROJECT_ROOT / "pages"
 
