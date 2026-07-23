@@ -66,6 +66,12 @@ eps_trend = get_eps_trend(selected_company_id)
 fcf_trend = get_fcf_trend(selected_company_id)
 revenue_profit_trend = get_revenue_profit_trend(selected_company_id)
 roe_roce_trend = get_roe_roce_trend(selected_company_id)
+available_years = roe_trend["year"].nunique()
+
+if available_years < 10:
+    st.info(
+        f"ℹ️ Limited historical data available: {available_years} year(s) of financial data found for this company."
+    )
 
 col1, col2, col3 = st.columns(3)
 col4, col5, col6 = st.columns(3)

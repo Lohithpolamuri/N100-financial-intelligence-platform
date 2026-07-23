@@ -695,7 +695,7 @@ def get_capital_allocation_data():
         on="company_id",
         how="left"
     )
-    st.write(df.columns)
+
 
     return df
 @st.cache_data(ttl=600)
